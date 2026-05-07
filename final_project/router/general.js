@@ -1,4 +1,5 @@
 const express = require('express');
+const axios = require('axios');
 let books = require("./booksdb.js");
 let isValid = require("./auth_users.js").isValid;
 let users = require("./auth_users.js").users;
@@ -29,83 +30,77 @@ public_users.post("/register", (req,res) => {
   return res.status(404).json({ message: "Unable to register user: Username or password not provided" });
 });
 
-// Get the book list available in the shop
-public_users.get('/',function (req, res) {
-  //Write your code here
-  return res.status(200).send(JSON.stringify(books, null, 4));
-});
-
-// Get book details based on ISBN
-public_users.get('/isbn/:isbn',function (req, res) {
-  //Write your code here
-  // 1. Retrieve the ISBN from the request parameters
-  const isbn = req.params.isbn;
-
-  // 2. Access the book object using the ISBN key from booksdb.js
-  const book = books[isbn];
-
-  // 3. Check if the book exists and return the response
-  if (book) {
-    return res.status(200).send(JSON.stringify(book, null, 4));
-  } else {
-    return res.status(404).json({ message: "Book not found" });
-  }
- });
-  
-// Get book details based on author
-public_users.get('/author/:author',function (req, res) {
- // 1. Retrieve the title from the request parameters
- const author = req.params.author;
-  
-  // 2. Obtain all the keys for the 'books' object from booksdb.js[cite: 1, 3]
-  const keys = Object.keys(books);
-  
-  // 3. Initialize an array to store matches
-  let filtered_books = [];
-
-  // 4. Iterate through the books object to find the matching title[cite: 1, 3]
-  keys.forEach((key) => {
-    if (books[key].author === author) {
-      filtered_books.push(books[key]);
+// Get the book list available in the shop using a Promise
+public_users.get('/', function (req, res) {
+  const fetchBooks = new Promise((resolve, reject) => {
+    if (books) {
+      resolve(books);
+    } else {
+      reject("Unable to load books");
     }
   });
 
-  // 5. If books are found, return them with status 200 (Success)
-  if (filtered_books.length > 0) {
-    return res.status(200).send(JSON.stringify(filtered_books, null, 4));
-  } else {
-    // If no match is found, return a 404 error
-    return res.status(404).json({ message: "No books found with this author" });
-  }
+  fetchBooks
+    .then((data) => {
+      return res.status(200).send(JSON.stringify(data, null, 4));
+    })
+    .catch((err) => {
+      return res.status(500).json({ message: err });
+    });
+});
+
+// Task 11: Get book details based on ISBN using Promises
+public_users.get('/isbn/:isbn', function (req, res) {
+    const fetchBook = new Promise((resolve, reject) => {
+        const isbn = req.params.isbn;
+        if (books[isbn]) {
+            resolve(books[isbn]);
+        } else {
+            reject("Book not found");
+        }
+    });
+
+    fetchBook
+        .then((book) => res.status(200).send(JSON.stringify(book, null, 4)))
+        .catch((err) => res.status(404).json({ message: err }));
+});
+  
+// Get book details based on author
+public_users.get('/author/:author', function (req, res) {
+    const fetchByAuthor = new Promise((resolve, reject) => {
+        const author = req.params.author;
+        const keys = Object.keys(books);
+        let filtered = keys.filter(key => books[key].author === author).map(key => books[key]);
+        
+        if (filtered.length > 0) {
+            resolve(filtered);
+        } else {
+            reject("No books found by this author");
+        }
+    });
+
+    fetchByAuthor
+        .then((data) => res.status(200).send(JSON.stringify(data, null, 4)))
+        .catch((err) => res.status(404).json({ message: err }));
 });
 
 // Get all books based on title
-public_users.get('/title/:title',function (req, res) {
-  // 1. Retrieve the title from the request parameters
-  const title = req.params.title;
-  
-  // 2. Obtain all the keys for the 'books' object
-  const keys = Object.keys(books);
-  
-  // 3. Initialize an array to store matching books
-  let filtered_books = [];
+public_users.get('/title/:title', function (req, res) {
+    const fetchByTitle = new Promise((resolve, reject) => {
+        const title = req.params.title;
+        const keys = Object.keys(books);
+        let filtered = keys.filter(key => books[key].title === title).map(key => books[key]);
 
-  // 4. Iterate through the books object using the keys
-  keys.forEach((key) => {
-    // Check if the title of the current book matches the requested title
-    if (books[key].title === title) {
-      filtered_books.push(books[key]);
-    }
-  });
+        if (filtered.length > 0) {
+            resolve(filtered);
+        } else {
+            reject("No books found with this title");
+        }
+    });
 
-  // 5. Return the result[cite: 1]
-  if (filtered_books.length > 0) {
-    // Use status 200 for a successful retrieval[cite: 1]
-    return res.status(200).send(JSON.stringify(filtered_books, null, 4));
-  } else {
-    // Return 404 if no book with that title exists
-    return res.status(404).json({ message: "No books found with this title" });
-  }
+    fetchByTitle
+        .then((data) => res.status(200).send(JSON.stringify(data, null, 4)))
+        .catch((err) => res.status(404).json({ message: err }));
 });
 
 //  Get book review
