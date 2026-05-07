@@ -65,23 +65,34 @@ public_users.get('/isbn/:isbn', function (req, res) {
         .catch((err) => res.status(404).json({ message: err }));
 });
   
-// Get book details based on author
+// Task 12: Get book details based on author using Axios and Promises
 public_users.get('/author/:author', function (req, res) {
-    const fetchByAuthor = new Promise((resolve, reject) => {
-        const author = req.params.author;
-        const keys = Object.keys(books);
-        let filtered = keys.filter(key => books[key].author === author).map(key => books[key]);
-        
-        if (filtered.length > 0) {
-            resolve(filtered);
-        } else {
-            reject("No books found by this author");
-        }
-    });
+    const author = req.params.author;
 
-    fetchByAuthor
-        .then((data) => res.status(200).send(JSON.stringify(data, null, 4)))
-        .catch((err) => res.status(404).json({ message: err }));
+    // We use axios to "fetch" the data, simulating an external API call
+    // Note: This requires the server to be running on port 5000
+    axios.get(`http://localhost:5000/`)
+        .then((response) => {
+            const allBooks = response.data;
+            const keys = Object.keys(allBooks);
+            let filteredBooks = [];
+
+            // Filter books by the specified author
+            keys.forEach((key) => {
+                if (allBooks[key].author === author) {
+                    filteredBooks.push(allBooks[key]);
+                }
+            });
+
+            if (filteredBooks.length > 0) {
+                res.status(200).send(JSON.stringify(filteredBooks, null, 4));
+            } else {
+                res.status(404).json({ message: "No books found by this author" });
+            }
+        })
+        .catch((error) => {
+            res.status(500).json({ message: "Error fetching books", error: error.message });
+        });
 });
 
 // Get all books based on title
